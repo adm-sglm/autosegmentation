@@ -2,7 +2,7 @@ import tensorflow as tf
 import os
 import random
 import numpy as np
-from tqdm import tqdm 
+from tqdm import tqdm
 import matplotlib.pyplot as plt
 import sys
 import glob
@@ -18,7 +18,7 @@ from scipy import stats
 import statsmodels.api as sm
 
 import sklearn.metrics as metrics
-from sklearn.metrics import roc_curve, auc 
+from sklearn.metrics import roc_curve, auc
 
 import scikitplot as skplt
 
@@ -38,11 +38,11 @@ channels=1
 axis =3
 
 """
-axis here tells the class all of the code below works on ! 
-axis = 0   background  
+axis here tells the class all of the code below works on !
+axis = 0   background
 axis = 1   right lung
 axis = 2   left lung
-axis = 3   covid-19 affected areas/ diseased areas 
+axis = 3   covid-19 affected areas/ diseased areas
 
 """
 
@@ -59,7 +59,7 @@ def dice_coef(y_true, y_pred, smooth=1):
 
 #model = tf.keras.models.load_model("U-Net COVID19 Segment model")
 model = tf.keras.models.load_model("model", custom_objects={'dice_coef':dice_coef})  ## loading model
-prediction = np.zeros((height,width,channels),dtype=np.float32) 
+prediction = np.zeros((height,width,channels),dtype=np.float32)
 
 img='coronacases_002.ni_z105img.png'
 maskimg='coronacases_002.ni_z105msk.png'
@@ -94,7 +94,7 @@ preds_train255=preds_train*255
 #hello = (hello>145).astype(np.bool)
 
 ####################################################################################################################################################################
-## this function cycles pixel intensity to get the best dice coefficient 
+## this function cycles pixel intensity to get the best dice coefficient
 def getbest_dice(preds_train_func,pred_mask):
 	dice=np.zeros(256,dtype=np.float32)
 	for i in range(0,255):
@@ -111,7 +111,7 @@ def getbest_dice(preds_train_func,pred_mask):
 		#if i==255:
 
 ####################################################################################################################################################################
-# Calculating Dice coef and Hauf distance 
+# Calculating Dice coef and Hauf distance
 
 best_dice= getbest_dice(preds_train255,predictionmask)
 #print(best_dice)
@@ -131,11 +131,11 @@ haufdist= hd(preds_perfect,predictionmask,voxelspacing=None, connectivity=1)
 print('Hausdorff Distance.',haufdist)   ############################# Val needs to be shown on GUI
 
 ####################################################################################################################################################################
-# P-value and A-bland altman plot 
+# P-value and A-bland altman plot
 
 pearson_stats=stats.pearsonr(preds_perfect.flatten(),predictionmask.flatten())
 print('pearson values ','r-value :' ,pearson_stats[0],'p-value :',pearson_stats[1])     ############################# both Vals needs to be shown on GUI
- 
+
 
 
 mask_graph=predictionmask*255
