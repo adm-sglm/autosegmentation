@@ -65,10 +65,12 @@ img='coronacases_002.ni_z105img.png'
 maskimg='coronacases_002.ni_z105msk.png'
 
 
-prediction= cv2.imread(img,0)
-predictionmask=cv2.imread(maskimg,0)
+prediction = cv2.imread(img,0)
+predictionmask = cv2.imread(maskimg,0)
 #print(np.unique(,return_counts=True,return_index=True))
+print('p before', predictionmask)
 predictionmask = (predictionmask == axis).astype(np.bool)
+print('p', predictionmask)
 #print('pred check',predictionmask.max())
 #imshow(predictionmask*255)
 #plt.show()
@@ -114,14 +116,18 @@ def getbest_dice(preds_train_func,pred_mask):
 # Calculating Dice coef and Hauf distance
 
 best_dice= getbest_dice(preds_train255,predictionmask)
-#print(best_dice)
-maxdice= max(best_dice)
+print(best_dice)
+maxdice= best_dice[0:255].max()
 print('dice coefficient',maxdice)    ############################# Val needs to be shown on GUI
 
 #itemindex = np.where(dice==maxdata)
-itemindex = np.argmax(best_dice)
+#itemindex = np.argmax(best_dice)
+if axis in range (0,3):
+	itemindex= best_dice[200:255].argmax() + 200
+elif axis == 3:
+	itemindex= best_dice[90:255].argmax() + 90
 
-#print('Intensity value at max dice',itemindex)
+print('Intensity value at max dice',itemindex)
 
 preds_perfect=(preds_train255>itemindex-1).astype(np.bool)
 preds_perfect = preds_perfect[...,axis].squeeze()

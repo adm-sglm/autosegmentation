@@ -1,5 +1,8 @@
 .vscode/
 env/
 *.png
+*.jpg
+*.jpeg
 cases/
 masks/
+dataset/
