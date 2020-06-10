@@ -43,6 +43,9 @@ class App:
     self.axis = 3
     self.total_frames = 0
     self.slice_index = 105
+    self.altman_fname = 'altman_plot.png'
+    self.roc_fname = 'roc.png'
+    self.active_plot_fname = self.roc_fname
     # GUI related
     self.master = master
     self.create_ui()
@@ -51,7 +54,7 @@ class App:
     self.init()
 
   def create_ui(self):
-    self.master.geometry("1020x900")
+    self.master.geometry("1220x900")
     self.master.title("MRI Cardiac Segmentation")
     self.master.style = Style()
     self.master.style.theme_use("default")
@@ -135,6 +138,15 @@ class App:
 
     self.exit_button.grid(row=1, sticky=W+E)
 
+    lbl = Label(self.metricsFrame, text="Choose plot to view")
+    lbl.grid(row=0, column=0, padx=5, pady=5)
+
+    self.plot_roc_btn = Button(self.metricsFrame, text="ROC/AUC", command=lambda: self.set_plot_image(self.roc_fname))
+    self.plot_roc_btn.grid(row=6, column=0, padx=5, pady=5)
+
+    self.plot_altman_btn = Button(self.metricsFrame, text="A bland Altman", command=lambda: self.set_plot_image(self.altman_fname))
+    self.plot_altman_btn.grid(row=6, column=1, padx=5, pady=5)
+
     # self.patientNameLbl = Label(self.metricsFrame, text="", anchor="center")
     # self.patientNameLbl.grid(row=5, column=0, padx=10, pady=10)
 
@@ -211,7 +223,11 @@ class App:
     self.prediction_raw = preds_train*255
 
     best_dice = self.getbest_dice(self.prediction_raw, self.mask)
-    self.itemindex = best_dice[90:255].argmax() + 90
+
+    if self.axis in range (0,3):
+      self.itemindex= best_dice[200:255].argmax() + 200
+    elif self.axis == 3:
+      self.itemindex= best_dice[90:255].argmax() + 90
 
     preds_perfect = (self.prediction_raw > self.itemindex-1).astype(np.bool)
     preds_perfect = preds_perfect[...,3].squeeze()
@@ -247,9 +263,8 @@ class App:
     ax.set_ylabel('True Positive rate ')
     ax.set_title('Receiver operating characteristic for Diseased Areas pixel wise')
     ax.legend(loc="lower right")
-    fname = 'roc.png'
-    plt.savefig(fname)
-    return fname
+    plt.savefig(self.roc_fname)
+    return self.roc_fname
 
   ## this function cycles pixel intensity to get the best dice coefficient
   def getbest_dice(self, preds_train_func,pred_mask):
@@ -296,9 +311,13 @@ class App:
     self.altman_plot()
     self.set_image(self.org_mask_cmp, self.create_image_component(self.mask))
     self.set_image(self.pred_mask_cmp, self.create_image_component(pred))
-    roc_image = self.process_plot(roc_fname)
-    self.set_image(self.analysis_cmp, self.create_image_component(roc_image))
     self.set_image(self.heatmap_cmp, self.create_image_component(heatmap))
+    self.set_plot_image(self.active_plot_fname)
+
+  def set_plot_image(self, fname):
+    self.active_plot_fname = fname
+    plot_image = self.process_plot(fname)
+    self.set_image(self.analysis_cmp, self.create_image_component(plot_image))
 
   def place_ui_images(self):
     img_cmp = self.create_image_component(self.mask)
@@ -316,9 +335,8 @@ class App:
 
     f, ax = plt.subplots(1, figsize = (8,5))
     fig = sm.graphics.mean_diff_plot(mask_graph.flatten(), pred_graph.flatten(), ax = ax)
-    fname = 'altman_plot.png'
-    fig.savefig(fname)
-    return fname
+    fig.savefig(self.altman_fname)
+    return self.altman_fname
 
   def dice_coef(self, y_true, y_pred, smooth=1):
     y_true_f = K.flatten(y_true)
