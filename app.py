@@ -41,13 +41,8 @@ class App:
     # self.images_path = "./dataset/train"
     self.model = None
     self.axis = 3
+    self.total_frames = 0
     self.slice_index = 105
-    # self.predprob = 0.5
-    # self.loaded_images = { "ES": None, "ED": None }
-    # # Patient images in nibabel format full path
-    # self.patient_images = {}
-    # # Patient info in a dictionary
-    # self.image_order = 0
     # GUI related
     self.master = master
     self.create_ui()
@@ -56,7 +51,7 @@ class App:
     self.init()
 
   def create_ui(self):
-    self.master.geometry("1020x870")
+    self.master.geometry("1020x900")
     self.master.title("MRI Cardiac Segmentation")
     self.master.style = Style()
     self.master.style.theme_use("default")
@@ -96,19 +91,17 @@ class App:
     self.pred_mask_cmp = Label(self.imageFrame)
     self.pred_mask_cmp.grid(row=3, column=0, padx=5, pady=5)
 
-    # srcLbl = Label(self.imageFrame, text="ED Mask")
-    # srcLbl.grid(row=0, column=1)
+    srcLbl = Label(self.imageFrame, text="Analysis Plot")
+    srcLbl.grid(row=0, column=1)
 
-    # self.edmask = Label(self.imageFrame)
-    # self.edmask.grid(row=1, column=1, padx=5, pady=5)
+    self.analysis_cmp = Label(self.imageFrame)
+    self.analysis_cmp.grid(row=1, column=1, padx=5, pady=5)
 
+    srcLbl = Label(self.imageFrame, text="Heatmask")
+    srcLbl.grid(row=2, column=1)
 
-
-    # srcLbl = Label(self.imageFrame, text="ES Mask")
-    # srcLbl.grid(row=2, column=1)
-
-    # self.esmask = Label(self.imageFrame)
-    # self.esmask.grid(row=3, column=1, padx=5, pady=5)
+    self.heatmap_cmp = Label(self.imageFrame)
+    self.heatmap_cmp.grid(row=3, column=1, padx=5, pady=5)
 
     # self.esimg = Label(self.imageFrame)
     # self.esimg.grid(row=3, column=0, padx=5, pady=5)
@@ -125,10 +118,10 @@ class App:
     # self.espmask = Label(self.imageFrame)
     # self.espmask.grid(row=3, column=2, padx=5, pady=5)
 
-    # b = Button(self.imageControlsFrame, text=">", command=self.next_src_image)
-    # b.grid(row=1, column=1, sticky=E)
-    # b = Button(self.imageControlsFrame, text="<", command=self.prev_src_image)
-    # b.grid(row=1, column=0, sticky=W)
+    b = Button(self.imageControlsFrame, text=">", command=self.next_frame)
+    b.grid(row=1, column=1, sticky=E)
+    b = Button(self.imageControlsFrame, text="<", command=self.prev_frame)
+    b.grid(row=1, column=0, sticky=W)
 
   def create_sidebar(self):
     fselect_button = Button(self.menuFrame, text="Load Data", command=self.open_path_dialog)
@@ -193,6 +186,16 @@ class App:
   def open_path_dialog(self):
     print("open path")
 
+  def next_frame(self):
+    if (self.slice_index > 0):
+      self.slice_index = self.slice_index - 1
+      self.process()
+
+  def prev_frame(self):
+    if (self.slice_index < self.total_frames):
+      self.slice_index = self.slice_index + 1
+      self.process()
+
   def preprocess_image(self, img, fname = "temp.png"):
     resized = resize(img, (384, 384))
     imsave(fname, resized)
@@ -205,16 +208,47 @@ class App:
     norm_image  = np.expand_dims(norm_image, axis=0)
 
     preds_train = self.model.predict(norm_image, verbose=1)
-    preds_train255 = preds_train*255
+    self.prediction_raw = preds_train*255
 
-    best_dice = self.getbest_dice(preds_train255, self.mask)
+    best_dice = self.getbest_dice(self.prediction_raw, self.mask)
     itemindex= best_dice[90:255].argmax() + 90
 
-    preds_perfect = (preds_train255 > itemindex-1).astype(np.bool)
+    preds_perfect = (self.prediction_raw > itemindex-1).astype(np.bool)
     preds_perfect = preds_perfect[...,3].squeeze()
 
     ## predicted mask from model
+    self.prediction = preds_perfect
     return preds_perfect
+
+  def process_plot(self, filename):
+    plot_img = imread(filename)
+    plot_img = resize(plot_img, (384, 384))
+    rescaled_image = 255 * plot_img
+    final_image = rescaled_image.astype(np.uint8)
+    return final_image
+
+  def roc(self):
+    y_mask = self.mask_raw
+    y_mask = tf.keras.utils.to_categorical(y_mask, num_classes=4, dtype='bool')
+    y_covid = y_mask[...,self.axis].squeeze()
+
+    y_predicted = self.prediction
+    # we want to make them into vectors
+    ground_truth_labels = y_covid.ravel()
+    score_value= y_predicted.ravel()
+    fpr, tpr, _ = roc_curve(ground_truth_labels, score_value)
+    roc_auc = auc(fpr,tpr)
+    fig, ax = plt.subplots(1,1)
+    ax.plot(fpr, tpr, label='ROC curve (area = %0.2f)' % roc_auc)
+    ax.plot([0, 1], [0, 1], 'k--')
+    ax.set_xlim([0.0, 1.0])
+    ax.set_ylim([0.0, 1.05])
+    ax.set_xlabel('False Positive rate')
+    ax.set_ylabel('True Positive rate ')
+    ax.set_title('Receiver operating characteristic for Diseased Areas pixel wise')
+    ax.legend(loc="lower right")
+    plt.savefig('roc.png')
+    return 'roc.png'
 
   ## this function cycles pixel intensity to get the best dice coefficient
   def getbest_dice(self, preds_train_func,pred_mask):
@@ -232,11 +266,17 @@ class App:
       #data= [dice,i]
     return dice
 
+  def heatmap(self):
+    # heat map to show prediction in a greater detail
+    heatmask=preds_train255[...,axis].squeeze()
+    return heatmask
+
   def init(self):
     tr_im = nib.load('./cases/coronacases_002.nii.gz')
     tr_masks = nib.load('./masks/coronacases_002.nii.gz')
     self.im_data = tr_im.get_fdata()
     self.mask_data = tr_masks.get_fdata()
+    self.total_frames = self.im_data.shape[2]
     self.process()
 
   def process(self):
@@ -245,12 +285,17 @@ class App:
 
     self.frame = self.preprocess_image(slice_1, 'frame.png')
 
-    mask_1 = resize(mask_1, (384, 384))
-    self.mask = (mask_1 == self.axis).astype(np.bool)
+    self.mask_raw = resize(mask_1, (384, 384))
+    self.mask = (self.mask_raw == self.axis).astype(np.bool)
 
     pred = self.predict()
+    roc_fname = self.roc()
+    heatmap = self.heatmap()
     self.set_image(self.org_mask_cmp, self.create_image_component(self.mask))
     self.set_image(self.pred_mask_cmp, self.create_image_component(pred))
+    roc_image = self.process_plot(roc_fname)
+    self.set_image(self.analysis_cmp, self.create_image_component(roc_image))
+    self.set_image(self.heatmask_cmp, self.create_image_component(heatmap))
 
   def place_ui_images(self):
     img_cmp = self.create_image_component(self.mask)
@@ -263,7 +308,7 @@ class App:
     return (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
 
   def load_model(self):
-    self.model = tf.keras.models.load_model("model", custom_objects={'dice_coef': self.dice_coef})  ## loading model
+    self.model = tf.keras.models.load_model("model", custom_objects={'dice_coef': self.dice_coef})
 
   def create_image_component(self, data):
     # load = Image.open(data)
