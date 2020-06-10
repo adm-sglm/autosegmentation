@@ -40,6 +40,8 @@ class App:
     # self.data_path = "./dataset/data"
     # self.images_path = "./dataset/train"
     self.model = None
+    self.frames_src = './cases/coronacases_002.nii.gz'
+    self.masks_src = './masks/coronacases_002.nii.gz'
     self.axis = 3
     self.total_frames = 0
     self.slice_index = 105
@@ -127,7 +129,7 @@ class App:
     b.grid(row=1, column=0, sticky=W)
 
   def create_sidebar(self):
-    fselect_button = Button(self.menuFrame, text="Load Data", command=self.open_path_dialog)
+    fselect_button = Button(self.menuFrame, text="Load Frames Data", command=self.open_path_dialog)
     fselect_button.grid(row=0, sticky=W+E)
 
     self.exit_button = Button(
@@ -136,10 +138,16 @@ class App:
       command=self.master.quit
     )
 
-    self.exit_button.grid(row=1, sticky=W+E)
+    self.exit_button.grid(row=3, sticky=W+E)
+
+    mselect_button = Button(self.menuFrame, text="Load Masks Data", command=self.open_path_masks_dialog)
+    mselect_button.grid(row=1, sticky=W+E)
+
+    process_button = Button(self.menuFrame, text="Process", command=self.init)
+    process_button.grid(row=2, sticky=W+E)
 
     listbox = Listbox(self.menuFrame)
-    listbox.grid(row=2, sticky=W+E)
+    listbox.grid(row=4, sticky=W+E)
 
     listbox.insert(END, "Background")
     listbox.insert(END, "Right Lung")
@@ -193,8 +201,14 @@ class App:
     self.process()
 
   def open_path_dialog(self):
-    filenames = tkinter.filedialog.askopenfiles()
+    filenames = tkinter.filedialog.askopenfile()
     print(filenames)
+    self.frames_src = filenames.name
+
+  def open_path_masks_dialog(self):
+    filenames = tkinter.filedialog.askopenfile()
+    print(filenames)
+    self.masks_src = filenames.name
 
   def next_frame(self):
     if (self.slice_index > 0):
@@ -287,8 +301,12 @@ class App:
     return heatmask
 
   def init(self):
-    tr_im = nib.load('./cases/coronacases_002.nii.gz')
-    tr_masks = nib.load('./masks/coronacases_002.nii.gz')
+    # tr_im = nib.load('./cases/coronacases_002.nii.gz')
+    # tr_masks = nib.load('./masks/coronacases_002.nii.gz')
+    if (self.frames_src == None or self.masks_src == None):
+      return
+    tr_im = nib.load(self.frames_src)
+    tr_masks = nib.load(self.masks_src)
     self.im_data = tr_im.get_fdata()
     self.mask_data = tr_masks.get_fdata()
     self.total_frames = self.im_data.shape[2]
