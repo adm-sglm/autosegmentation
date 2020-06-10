@@ -193,7 +193,8 @@ class App:
     self.process()
 
   def open_path_dialog(self):
-    print("open path")
+    filenames = tkinter.filedialog.askopenfiles()
+    print(filenames)
 
   def next_frame(self):
     if (self.slice_index > 0):
