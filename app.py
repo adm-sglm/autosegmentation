@@ -138,14 +138,23 @@ class App:
 
     self.exit_button.grid(row=1, sticky=W+E)
 
+    listbox = Listbox(self.menuFrame)
+    listbox.grid(row=2, sticky=W+E)
+
+    listbox.insert(END, "Background")
+    listbox.insert(END, "Right Lung")
+    listbox.insert(END, "Left Lung")
+    listbox.insert(END, "Covid-19")
+    listbox.bind('<<ListboxSelect>>', self.change_axis)
+
     lbl = Label(self.metricsFrame, text="Choose plot to view")
     lbl.grid(row=0, column=0, padx=5, pady=5)
 
     self.plot_roc_btn = Button(self.metricsFrame, text="ROC/AUC", command=lambda: self.set_plot_image(self.roc_fname))
-    self.plot_roc_btn.grid(row=6, column=0, padx=5, pady=5)
+    self.plot_roc_btn.grid(row=1, column=0, padx=5, pady=5)
 
     self.plot_altman_btn = Button(self.metricsFrame, text="A bland Altman", command=lambda: self.set_plot_image(self.altman_fname))
-    self.plot_altman_btn.grid(row=6, column=1, padx=5, pady=5)
+    self.plot_altman_btn.grid(row=1, column=1, padx=5, pady=5)
 
     # self.patientNameLbl = Label(self.metricsFrame, text="", anchor="center")
     # self.patientNameLbl.grid(row=5, column=0, padx=10, pady=10)
@@ -153,47 +162,35 @@ class App:
     # tbl_fspace = Label(self.metricsFrame, text="")
     # tbl_fspace.grid(row=0, column=0, padx=5, pady=5)
 
-    # lv_ed_lbl = Label(self.metricsFrame, text="LV")
-    # lv_ed_lbl.grid(row=1, column=0, padx=5, pady=5)
+    lbl = Label(self.metricsFrame, text="Dice-Coefficient")
+    lbl.grid(row=2, column=0, padx=5, pady=5)
 
-    # dice_lbl = Label(self.metricsFrame, text="Dice coeff.")
-    # dice_lbl.grid(row=2, column=0, padx=5, pady=5)
+    self.dice_lbl = Label(self.metricsFrame, text="")
+    self.dice_lbl.grid(row=3, column=0, padx=5, pady=5)
 
-    # volume_lbl = Label(self.metricsFrame, text="Volume")
-    # volume_lbl.grid(row=3, column=0, padx=5, pady=5)
+    lbl = Label(self.metricsFrame, text="Hausdorff distance")
+    lbl.grid(row=4, column=0, padx=5, pady=5)
 
-    # volume_lbl = Label(self.metricsFrame, text="EF")
-    # volume_lbl.grid(row=4, column=0, padx=5, pady=5)
+    self.haus_lbl = Label(self.metricsFrame, text="")
+    self.haus_lbl.grid(row=5, column=0, padx=5, pady=5)
 
-    # ed_tbl_lbl = Label(self.metricsFrame, text="ED")
-    # ed_tbl_lbl.grid(row=0, column=1, padx=5, pady=5)
-    # es_tbl_lbl = Label(self.metricsFrame, text="ES")
-    # es_tbl_lbl.grid(row=0, column=2, padx=5, pady=5)
+    lbl = Label(self.metricsFrame, text="Pearson corr. coeff.")
+    lbl.grid(row=6, column=0, padx=5, pady=5)
 
-    # self.lv_ed_val = Label(self.metricsFrame, text="")
-    # self.lv_ed_val.grid(row=1, column=1, padx=5, pady=5)
+    self.pearsonc_lbl = Label(self.metricsFrame, text="")
+    self.pearsonc_lbl.grid(row=7, column=0, padx=5, pady=5)
 
-    # self.lvl_es_val = Label(self.metricsFrame, text="")
-    # self.lvl_es_val.grid(row=1, column=2, padx=5, pady=5)
+    lbl = Label(self.metricsFrame, text="P-Value")
+    lbl.grid(row=8, column=0, padx=5, pady=5)
 
-    # self.dice_ed = Label(self.metricsFrame, text="")
-    # self.dice_ed.grid(row=2, column=1, padx=5, pady=5)
-    # self.dice_es = Label(self.metricsFrame, text="")
-    # self.dice_es.grid(row=2, column=2, padx=5, pady=5)
+    self.pval_lbl = Label(self.metricsFrame, text="")
+    self.pval_lbl.grid(row=9, column=0, padx=5, pady=5)
 
-    # self.vol_ed = Label(self.metricsFrame, text="")
-    # self.vol_ed.grid(row=3, column=1, padx=5, pady=5)
-    # self.vol_es = Label(self.metricsFrame, text="")
-    # self.vol_es.grid(row=3, column=2, padx=5, pady=5)
-
-    # self.ef_lbl = Label(self.metricsFrame, text="")
-    # self.ef_lbl.grid(row=4, column=1, padx=5, pady=5)
-
-    # self.next_patient_btn = Button(self.metricsFrame, text=">", command=self.next_patient)
-    # self.next_patient_btn.grid(row=6, column=1)
-
-    # self.prev_patient_btn = Button(self.metricsFrame, text="<", command=self.prev_patient)
-    # self.prev_patient_btn.grid(row=6, column=0)
+  def change_axis(self, evt):
+    w = evt.widget
+    index = int(w.curselection()[0])
+    self.axis = index
+    self.process()
 
   def open_path_dialog(self):
     print("open path")
@@ -223,6 +220,7 @@ class App:
     self.prediction_raw = preds_train*255
 
     best_dice = self.getbest_dice(self.prediction_raw, self.mask)
+    self.dice_coeff= best_dice[0:255].max()
 
     if self.axis in range (0,3):
       self.itemindex= best_dice[200:255].argmax() + 200
@@ -230,7 +228,7 @@ class App:
       self.itemindex= best_dice[90:255].argmax() + 90
 
     preds_perfect = (self.prediction_raw > self.itemindex-1).astype(np.bool)
-    preds_perfect = preds_perfect[...,3].squeeze()
+    preds_perfect = preds_perfect[...,self.axis].squeeze()
 
     ## predicted mask from model
     self.prediction = preds_perfect
@@ -295,6 +293,10 @@ class App:
     self.total_frames = self.im_data.shape[2]
     self.process()
 
+  def metrics(self):
+    haufdist = hd(self.prediction, self.mask,voxelspacing=None, connectivity=1)
+    self.haufdist = haufdist
+
   def process(self):
     slice_1 = self.im_data[:,:,self.slice_index]
     mask_1 = self.mask_data[:,:,self.slice_index]
@@ -309,10 +311,15 @@ class App:
     heatmap = self.heatmap()
     self.pval_abland()
     self.altman_plot()
+    self.metrics()
     self.set_image(self.org_mask_cmp, self.create_image_component(self.mask))
     self.set_image(self.pred_mask_cmp, self.create_image_component(pred))
     self.set_image(self.heatmap_cmp, self.create_image_component(heatmap))
     self.set_plot_image(self.active_plot_fname)
+    self.dice_lbl.config(text=self.dice_coeff)
+    self.haus_lbl.config(text=self.haufdist)
+    self.pearsonc_lbl.config(text=self.pearsonc)
+    self.pval_lbl.config(text=self.pval)
 
   def set_plot_image(self, fname):
     self.active_plot_fname = fname
@@ -325,7 +332,8 @@ class App:
 
   def pval_abland(self):
     pearson_stats = stats.pearsonr(self.prediction.flatten(), self.mask.flatten())
-    print('pearson values ','r-value :' ,pearson_stats[0],'p-value :',pearson_stats[1])
+    self.pearsonc = pearson_stats[0]
+    self.pval = pearson_stats[1]
 
   def altman_plot(self):
     mask_graph=self.mask*255
