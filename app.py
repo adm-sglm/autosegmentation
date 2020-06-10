@@ -211,9 +211,9 @@ class App:
     self.prediction_raw = preds_train*255
 
     best_dice = self.getbest_dice(self.prediction_raw, self.mask)
-    itemindex= best_dice[90:255].argmax() + 90
+    self.itemindex = best_dice[90:255].argmax() + 90
 
-    preds_perfect = (self.prediction_raw > itemindex-1).astype(np.bool)
+    preds_perfect = (self.prediction_raw > self.itemindex-1).astype(np.bool)
     preds_perfect = preds_perfect[...,3].squeeze()
 
     ## predicted mask from model
@@ -247,15 +247,16 @@ class App:
     ax.set_ylabel('True Positive rate ')
     ax.set_title('Receiver operating characteristic for Diseased Areas pixel wise')
     ax.legend(loc="lower right")
-    plt.savefig('roc.png')
-    return 'roc.png'
+    fname = 'roc.png'
+    plt.savefig(fname)
+    return fname
 
   ## this function cycles pixel intensity to get the best dice coefficient
   def getbest_dice(self, preds_train_func,pred_mask):
     axis = 3
     dice=np.zeros(256,dtype=np.float32)
     for i in range(0,255):
-      hello=preds_train_func[...,axis].squeeze()
+      hello = preds_train_func[...,axis].squeeze()
       hello = (hello>i).astype(np.bool)
       #ihere+=i
       dcval= dc(hello,pred_mask)*100
@@ -268,7 +269,7 @@ class App:
 
   def heatmap(self):
     # heat map to show prediction in a greater detail
-    heatmask=preds_train255[...,axis].squeeze()
+    heatmask = self.prediction_raw[...,self.axis].squeeze()
     return heatmask
 
   def init(self):
@@ -291,15 +292,33 @@ class App:
     pred = self.predict()
     roc_fname = self.roc()
     heatmap = self.heatmap()
+    self.pval_abland()
+    self.altman_plot()
     self.set_image(self.org_mask_cmp, self.create_image_component(self.mask))
     self.set_image(self.pred_mask_cmp, self.create_image_component(pred))
     roc_image = self.process_plot(roc_fname)
     self.set_image(self.analysis_cmp, self.create_image_component(roc_image))
-    self.set_image(self.heatmask_cmp, self.create_image_component(heatmap))
+    self.set_image(self.heatmap_cmp, self.create_image_component(heatmap))
 
   def place_ui_images(self):
     img_cmp = self.create_image_component(self.mask)
     self.set_image(self.org_mask_cmp, img_cmp)
+
+  def pval_abland(self):
+    pearson_stats = stats.pearsonr(self.prediction.flatten(), self.mask.flatten())
+    print('pearson values ','r-value :' ,pearson_stats[0],'p-value :',pearson_stats[1])
+
+  def altman_plot(self):
+    mask_graph=self.mask*255
+
+    pred_graph = (self.prediction_raw > self.itemindex-1).astype(np.uint8)
+    pred_graph = pred_graph[...,self.axis].squeeze()
+
+    f, ax = plt.subplots(1, figsize = (8,5))
+    fig = sm.graphics.mean_diff_plot(mask_graph.flatten(), pred_graph.flatten(), ax = ax)
+    fname = 'altman_plot.png'
+    fig.savefig(fname)
+    return fname
 
   def dice_coef(self, y_true, y_pred, smooth=1):
     y_true_f = K.flatten(y_true)
